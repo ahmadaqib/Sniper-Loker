@@ -8,9 +8,11 @@ class JobsRealtimeClient {
     this.ws = null;
     this.pollTimer = null;
     this.lastSeen = new Date(0).toISOString();
+    this.closed = false;
   }
 
   connect() {
+    this.closed = false;
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const params = new URLSearchParams({ keyword: this.keyword, location: this.location });
     this.ws = new WebSocket(`${protocol}//${window.location.host}/ws/jobs?${params.toString()}`);
@@ -30,7 +32,9 @@ class JobsRealtimeClient {
       }
     };
 
-    this.ws.onclose = () => this.reconnect();
+    this.ws.onclose = () => {
+      if (!this.closed) this.reconnect();
+    };
     this.ws.onerror = () => {
       this.onStatus("error");
       this.ws.close();
@@ -76,10 +80,10 @@ class JobsRealtimeClient {
   }
 
   close() {
+    this.closed = true;
     this.stopPolling();
     if (this.ws) this.ws.close();
   }
 }
 
 window.JobsRealtimeClient = JobsRealtimeClient;
-

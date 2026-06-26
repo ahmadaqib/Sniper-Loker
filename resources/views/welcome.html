@@ -1,68 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Goravel</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f8fafc;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-        .container {
-            text-align: center;
-            background: white;
-            padding: 4rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            max-width: 500px;
-            width: 90%;
-        }
-        h1 {
-            font-size: 2rem;
-            margin-top: 0;
-            margin-bottom: 1rem;
-            color: #0f172a;
-            font-weight: 700;
-        }
-        p {
-            font-size: 1.125rem;
-            color: #64748b;
-            margin-bottom: 2rem;
-            line-height: 1.5;
-        }
-        .version {
-            display: inline-block;
-            background: #eff6ff;
-            color: #2563eb;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-        .footer {
-            margin-top: 2rem;
-            font-size: 0.875rem;
-            color: #94a3b8;
-        }
-    </style>
+    <title>Loker Radar</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/public/css/loker-radar.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to Goravel</h1>
-        <p>A minimalist landing page built with raw HTML and CSS. You're ready to build something amazing.</p>
-        <span class="version">Goravel v{{ .version }}</span>
-        
-        <div class="footer">
-            Hot-reloading powered by Air 🔥
+    <header class="app-header">
+        <div class="app-header__inner">
+            <a class="brand" href="/" aria-label="Loker Radar">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" role="img">
+                        <circle cx="24" cy="24" r="17"></circle>
+                        <circle cx="24" cy="24" r="7"></circle>
+                        <path d="M24 7v6M24 35v6M7 24h6M35 24h6M29 19l8-8"></path>
+                    </svg>
+                </span>
+                <span>
+                    <span class="brand-title">Loker Radar</span>
+                    <span class="brand-subtitle">loker.elips.site</span>
+                </span>
+            </a>
+            <div class="header-actions">
+                <span class="new-badge" id="newBadge" hidden>0 baru</span>
+                <button class="icon-button" type="button" id="refreshButton" aria-label="Muat ulang hasil">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5"></path><path d="M4 18v-5h5"></path><path d="M18.7 9A7 7 0 0 0 6.3 6.3L4 8.6"></path><path d="M5.3 15a7 7 0 0 0 12.4 2.7L20 15.4"></path></svg>
+                </button>
+            </div>
         </div>
-    </div>
+    </header>
+
+    <main class="app-shell">
+        <section class="search-band" aria-label="Pencarian lowongan">
+            <form class="search-form" id="searchForm">
+                <div class="field field--keyword">
+                    <label for="keyword">Kata kunci</label>
+                    <div class="input-wrap">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+                        <input id="keyword" name="keyword" type="search" autocomplete="off" placeholder="Akuntan, Programmer, Data Analyst">
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="location">Lokasi</label>
+                    <div class="input-wrap">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 4.9-8 11-8 11S4 14.9 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        <input id="location" name="location" type="text" autocomplete="off" list="locationOptions" placeholder="Kota atau Provinsi">
+                        <datalist id="locationOptions"></datalist>
+                    </div>
+                </div>
+                <div class="field">
+                    <label for="category">Kategori</label>
+                    <div class="input-wrap">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h10"></path></svg>
+                        <select id="category" name="category">
+                            <option value="">Semua kategori</option>
+                            <option>Teknologi</option>
+                            <option>Keuangan</option>
+                            <option>Operasional</option>
+                            <option>Penjualan</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="primary-button" type="submit">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+                    <span>Cari Lowongan</span>
+                </button>
+
+                <button class="filter-toggle" id="filterToggle" type="button" aria-expanded="false" aria-controls="advancedFilters">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7"></path><path d="M4 10V3"></path><path d="M12 21v-9"></path><path d="M12 8V3"></path><path d="M20 21v-5"></path><path d="M20 12V3"></path><path d="M2 14h4"></path><path d="M10 8h4"></path><path d="M18 16h4"></path></svg>
+                    <span>Filter Lanjutan</span>
+                </button>
+
+                <div class="advanced-filters" id="advancedFilters" hidden>
+                    <div class="field">
+                        <label for="salary">Gaji minimum</label>
+                        <div class="input-wrap">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                            <input id="salary" name="salary" type="number" min="0" step="500000" placeholder="5000000">
+                        </div>
+                    </div>
+                    <fieldset class="check-group">
+                        <legend>Tipe</legend>
+                        <label><input type="checkbox" name="type" value="full-time"> Full-time</label>
+                        <label><input type="checkbox" name="type" value="part-time"> Part-time</label>
+                        <label><input type="checkbox" name="type" value="wfh"> WFH</label>
+                    </fieldset>
+                </div>
+            </form>
+        </section>
+
+        <section class="status-bar" aria-live="polite">
+            <span class="status-dot status-dot--warn" id="statusDot"></span>
+            <span id="statusText">Menghubungkan</span>
+            <span class="status-separator"></span>
+            <span>Mengambil dari 4 sumber</span>
+            <span class="status-separator"></span>
+            <span><strong id="jobCount">0</strong> lowongan</span>
+            <span class="status-separator"></span>
+            <span id="updatedAt">Belum diperbarui</span>
+        </section>
+
+        <section class="results-layout">
+            <aside class="summary-panel" aria-label="Ringkasan pencarian">
+                <div class="summary-metric">
+                    <span class="summary-label">Sumber aktif</span>
+                    <strong>4</strong>
+                </div>
+                <div class="summary-metric">
+                    <span class="summary-label">Batch baru</span>
+                    <strong id="batchCount">0</strong>
+                </div>
+                <div class="source-list" aria-label="Sumber">
+                    <span>via Loker.id</span>
+                    <span>via Karir.com</span>
+                    <span>via Indeed</span>
+                    <span>via Glints</span>
+                </div>
+            </aside>
+
+            <section class="results" aria-label="Daftar lowongan">
+                <div class="results-head">
+                    <div>
+                        <h1>Lowongan terbaru</h1>
+                        <p id="resultCaption">Cari lowongan dan biarkan sistem memperbarui hasil secara real-time.</p>
+                    </div>
+                    <select id="sortSelect" aria-label="Urutkan lowongan">
+                        <option value="fresh">Terbaru</option>
+                        <option value="company">Perusahaan</option>
+                    </select>
+                </div>
+
+                <div class="skeleton-list" id="skeletonList" hidden>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+
+                <div class="error-state" id="errorState" hidden>
+                    <strong>Gagal memuat lowongan.</strong>
+                    <span>Data dari koneksi sebelumnya tetap dipertahankan.</span>
+                    <button type="button" id="retryButton">Coba lagi</button>
+                </div>
+
+                <div class="job-list" id="jobList"></div>
+
+                <div class="empty-state" id="emptyState">
+                    <svg viewBox="0 0 180 130" aria-hidden="true">
+                        <rect x="48" y="28" width="84" height="72" rx="6"></rect>
+                        <path d="M62 48h56M62 62h38M62 76h48"></path>
+                        <circle cx="56" cy="90" r="24"></circle>
+                        <path d="m74 108 22 18"></path>
+                    </svg>
+                    <h2>Belum ada lowongan yang cocok.</h2>
+                    <p id="emptyCopy">Sistem akan terus mencari secara otomatis setiap 5 menit.</p>
+                    <div class="suggestions">
+                        <button type="button" data-keyword="Data Engineer">Data Engineer</button>
+                        <button type="button" data-keyword="Business Analyst">Business Analyst</button>
+                        <button type="button" data-keyword="Statistisi">Statistisi</button>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <template id="jobCardTemplate">
+        <article class="job-card">
+            <div class="company-logo" aria-hidden="true"></div>
+            <div class="job-card__main">
+                <div class="job-card__top">
+                    <div>
+                        <h2 class="job-title"></h2>
+                        <p class="job-company"></p>
+                    </div>
+                    <button class="save-button" type="button" aria-label="Simpan lowongan">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 21 12 17 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z"></path></svg>
+                    </button>
+                </div>
+                <div class="job-meta">
+                    <span class="job-location"></span>
+                    <span class="job-type">Full-time</span>
+                    <span class="job-salary">Gaji tidak dicantumkan</span>
+                </div>
+                <div class="job-card__middle">
+                    <div class="skills"></div>
+                    <span class="fresh-badge">BARU</span>
+                    <span class="source-badge"></span>
+                    <span class="job-time"></span>
+                </div>
+                <p class="job-description"></p>
+                <div class="job-card__actions">
+                    <button class="text-button details-button" type="button">Selengkapnya</button>
+                    <a class="apply-button" target="_blank" rel="noreferrer">
+                        <span>Lamar Sekarang</span>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+                    </a>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <script src="/public/js/jobs_ws.js"></script>
+    <script src="/public/js/location-autocomplete.js"></script>
+    <script src="/public/js/loker-radar.js"></script>
 </body>
 </html>

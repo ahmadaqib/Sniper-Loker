@@ -74,7 +74,21 @@ func NewMongoClient(uri string) (*mongo.Client, error) {
 	if strings.TrimSpace(uri) == "" {
 		uri = "mongodb://localhost:27017"
 	}
-	return mongo.Connect(options.Client().ApplyURI(uri))
+	return NewMongoClientWithTimeout(uri, 2*time.Second)
+}
+
+func NewMongoClientWithTimeout(uri string, timeout time.Duration) (*mongo.Client, error) {
+	if strings.TrimSpace(uri) == "" {
+		uri = "mongodb://localhost:27017"
+	}
+	if timeout <= 0 {
+		timeout = 2 * time.Second
+	}
+
+	return mongo.Connect(options.Client().
+		ApplyURI(uri).
+		SetConnectTimeout(timeout).
+		SetServerSelectionTimeout(timeout))
 }
 
 func (r *MongoJobRepository) EnsureIndexes(ctx context.Context) error {

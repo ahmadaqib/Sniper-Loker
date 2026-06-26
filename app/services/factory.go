@@ -53,14 +53,23 @@ func NewDefaultScraperService(ctx context.Context) (*ScraperService, error) {
 	return NewScraperService(registry, breaker, repo), nil
 }
 
-func NewDefaultJobRepository(ctx context.Context) (repositories.JobRepository, error) {
-	client, err := repositories.NewMongoClient(envString("MONGODB_URI", "mongodb://localhost:27017"))
+func NewDefaultJobRepository(ctx context.Context, ensureIndexes ...bool) (repositories.JobRepository, error) {
+	client, err := repositories.NewMongoClientWithTimeout(
+		envString("MONGODB_URI", "mongodb://localhost:27017"),
+		time.Duration(envInt("MONGODB_TIMEOUT_SECONDS", 2))*time.Second,
+	)
 	if err != nil {
 		return nil, err
 	}
 	repo := newMongoRepository(client)
-	if err := repo.EnsureIndexes(ctx); err != nil {
-		return nil, err
+	shouldEnsure := true
+	if len(ensureIndexes) > 0 {
+		shouldEnsure = ensureIndexes[0]
+	}
+	if shouldEnsure {
+		if err := repo.EnsureIndexes(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return repo, nil
 }

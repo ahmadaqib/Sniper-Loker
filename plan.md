@@ -959,14 +959,14 @@ Font: `--font-mono`, `--text-xs`, `--color-ink-secondary`. Dot: animasi `pulse` 
 
 ### Phase 5 — Frontend (Week 3-4)
 
-- [ ] CSS custom properties dari design system Section 8
-- [ ] Font import: DM Serif Display + IBM Plex Sans/Mono via Google Fonts
-- [ ] Search form + Filter Lanjutan (collapsible)
-- [ ] Job card component
-- [ ] Status bar (WebSocket status dot)
-- [ ] Skeleton loading states
-- [ ] Empty state + error state
-- [ ] WebSocket client dengan fallback polling
+- [x] CSS custom properties dari design system Section 8
+- [x] Font import: DM Serif Display + IBM Plex Sans/Mono via Google Fonts
+- [x] Search form + Filter Lanjutan (collapsible)
+- [x] Job card component
+- [x] Status bar (WebSocket status dot)
+- [x] Skeleton loading states
+- [x] Empty state + error state
+- [x] WebSocket client dengan fallback polling
 
 ### Phase 6 — Polish & Testing (Week 4)
 

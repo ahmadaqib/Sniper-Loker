@@ -7,6 +7,7 @@ import (
 
 	"Goravel-learn/app/repositories"
 	"Goravel-learn/app/services"
+	"Goravel-learn/app/services/scraper"
 
 	goravelhttp "github.com/goravel/framework/contracts/http"
 	"github.com/gorilla/websocket"
@@ -27,20 +28,33 @@ func NewJobController() *JobController {
 }
 
 func (c *JobController) Index(ctx goravelhttp.Context) goravelhttp.Response {
-	repo, err := services.NewDefaultJobRepository(ctx)
+	requestCtx, cancel := context.WithTimeout(ctx, 2500*time.Millisecond)
+	defer cancel()
+
+	repo, err := services.NewDefaultJobRepository(requestCtx, false)
 	if err != nil {
-		return ctx.Response().Json(http.StatusInternalServerError, goravelhttp.Json{"error": err.Error()})
+		return ctx.Response().Json(http.StatusServiceUnavailable, goravelhttp.Json{
+			"error":  "database unavailable",
+			"detail": err.Error(),
+			"jobs":   []any{},
+			"count":  0,
+		})
 	}
 
 	since, _ := time.Parse(time.RFC3339, ctx.Request().Query("since"))
-	jobs, err := repo.ListJobs(ctx, repositories.JobFilter{
+	jobs, err := repo.ListJobs(requestCtx, repositories.JobFilter{
 		Keyword:  ctx.Request().Query("keyword"),
 		Location: ctx.Request().Query("location"),
 		Since:    since,
 		Limit:    int64(ctx.Request().QueryInt("limit", 50)),
 	})
 	if err != nil {
-		return ctx.Response().Json(http.StatusInternalServerError, goravelhttp.Json{"error": err.Error()})
+		return ctx.Response().Json(http.StatusServiceUnavailable, goravelhttp.Json{
+			"error":  "database unavailable",
+			"detail": err.Error(),
+			"jobs":   []any{},
+			"count":  0,
+		})
 	}
 
 	return ctx.Response().Success().Json(goravelhttp.Json{
@@ -72,6 +86,37 @@ func (c *JobController) WebSocket(ctx goravelhttp.Context) goravelhttp.Response 
 	return nil
 }
 
+func (c *JobController) Search(ctx goravelhttp.Context) goravelhttp.Response {
+	query := scraper.SearchQuery{
+		Keyword:  firstNonEmpty(ctx.Request().Input("keyword"), ctx.Request().Query("keyword")),
+		Location: firstNonEmpty(ctx.Request().Input("location"), ctx.Request().Query("location")),
+	}
+
+	initCtx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	service, err := services.NewDefaultScraperService(initCtx)
+	cancel()
+	if err != nil {
+		return ctx.Response().Json(http.StatusServiceUnavailable, goravelhttp.Json{
+			"error":  "scraper unavailable",
+			"detail": err.Error(),
+		})
+	}
+
+	go func() {
+		runCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		_ = service.Scrape(runCtx, query).Err()
+	}()
+
+	return ctx.Response().Json(http.StatusAccepted, goravelhttp.Json{
+		"status":    "accepted",
+		"keyword":   query.Keyword,
+		"location":  query.Location,
+		"channel":   services.ChannelName(query.Keyword, query.Location),
+		"timestamp": time.Now().UTC(),
+	})
+}
+
 func (c *JobController) readUntilClosed(ctx context.Context, conn *websocket.Conn, unsubscribe func()) {
 	defer unsubscribe()
 	for {
@@ -84,4 +129,13 @@ func (c *JobController) readUntilClosed(ctx context.Context, conn *websocket.Con
 			}
 		}
 	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

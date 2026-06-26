@@ -22,5 +22,6 @@ func Web() {
 
 	jobController := controllers.NewJobController()
 	facades.Route().Get("/api/jobs", jobController.Index)
+	facades.Route().Post("/api/search", jobController.Search)
 	facades.Route().Get("/ws/jobs", jobController.WebSocket)
 }
