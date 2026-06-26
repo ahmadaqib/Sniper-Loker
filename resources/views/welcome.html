@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Goravel</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 4rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            font-size: 2rem;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            color: #0f172a;
+            font-weight: 700;
+        }
+        p {
+            font-size: 1.125rem;
+            color: #64748b;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+        .version {
+            display: inline-block;
+            background: #eff6ff;
+            color: #2563eb;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .footer {
+            margin-top: 2rem;
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Goravel</h1>
+        <p>A minimalist landing page built with raw HTML and CSS. You're ready to build something amazing.</p>
+        <span class="version">Goravel v{{ .version }}</span>
+        
+        <div class="footer">
+            Hot-reloading powered by Air 🔥
+        </div>
+    </div>
+</body>
+</html>
