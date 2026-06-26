@@ -151,6 +151,7 @@
     node.querySelector(".job-title").textContent = job.title || "Lowongan tanpa judul";
     node.querySelector(".job-company").textContent = job.company || "Perusahaan tidak dicantumkan";
     node.querySelector(".job-location").textContent = job.location || "Lokasi tidak dicantumkan";
+    node.querySelector(".job-salary").textContent = job.salary || "Gaji tidak dicantumkan";
     node.querySelector(".source-badge").textContent = `via ${sourceName(job.source)}`;
     node.querySelector(".job-time").textContent = relativeTime(job.last_seen_at || job.posted_at || job.first_seen_at);
     node.querySelector(".job-description").textContent = stripHTML(job.description) || "Deskripsi belum tersedia dari sumber.";

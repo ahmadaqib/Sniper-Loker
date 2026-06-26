@@ -3,11 +3,13 @@ package scraper
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -101,14 +103,17 @@ func (s *LokerIDSource) Scrape(ctx context.Context, query SearchQuery) ([]Scrape
 	}
 
 	if result := IsValidJobPage(resp.StatusCode, doc); !result.Valid {
-		return nil, fmt.Errorf("invalid loker.id page: %s", result.Reason)
+		// As fallback for Loker.id Remix SPA, just check status
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("invalid loker.id page: %s", result.Reason)
+		}
 	}
 
-	return s.extractJobs(doc), nil
+	return s.extractJobs(string(body)), nil
 }
 
 func (s *LokerIDSource) searchURL(query SearchQuery) (string, error) {
-	base, err := url.Parse(s.config.BaseURL + "/lowongan")
+	base, err := url.Parse(s.config.BaseURL + "/cari-lowongan-kerja")
 	if err != nil {
 		return "", err
 	}
@@ -125,60 +130,115 @@ func (s *LokerIDSource) searchURL(query SearchQuery) (string, error) {
 	return base.String(), nil
 }
 
-func (s *LokerIDSource) extractJobs(doc *goquery.Document) []ScrapedJob {
-	var jobs []ScrapedJob
-	selectors := []string{
-		".job-list .job, .job-list .job-card, article.job, article[class*='job']",
-		".job-card, .vacancy-card, .lowongan, [class*='lowongan']",
+func (s *LokerIDSource) extractJobs(body string) []ScrapedJob {
+	re := regexp.MustCompile(`window\.__remixContext\s*=\s*(\{.*?\});\s*</script>`)
+	match := re.FindStringSubmatch(body)
+	if len(match) < 2 {
+		return nil
 	}
 
-	for _, selector := range selectors {
-		doc.Find(selector).Each(func(_ int, card *goquery.Selection) {
-			if job, ok := s.extractJobCard(card); ok {
-				jobs = append(jobs, job)
+	var data map[string]any
+	if err := json.Unmarshal([]byte(match[1]), &data); err != nil {
+		return nil
+	}
+
+	state, ok := data["state"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	loaderData, ok := state["loaderData"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	var jobsArray []any
+	for k, v := range loaderData {
+		if strings.Contains(k, "cari-lowongan-kerja") {
+			if route, ok := v.(map[string]any); ok {
+				if jobs, ok := route["jobs"].([]any); ok {
+					jobsArray = jobs
+					break
+				}
 			}
-		})
-		if len(jobs) > 0 {
-			break
 		}
 	}
 
-	return jobs
+	var result []ScrapedJob
+	for _, j := range jobsArray {
+		if job, ok := j.(map[string]any); ok {
+			title := cleanText(asString(job["title"]))
+			company := cleanText(asString(job["company_name"]))
+			
+			var location string
+			if locs, ok := job["locations"].([]any); ok && len(locs) > 0 {
+				if l, ok := locs[0].(map[string]any); ok {
+					location = cleanText(asString(l["name"]))
+				}
+			}
+
+			salary := cleanText(asString(job["job_salary"]))
+			if salary == "" {
+				if salObj, ok := job["salary"].(map[string]any); ok {
+					salary = cleanText(asString(salObj["name"]))
+				}
+			}
+			
+			slug := asString(job["slug"])
+
+			var postedAt *time.Time
+			if pubStr := asString(job["published_at"]); pubStr != "" {
+				if t, err := time.Parse("2006-01-02 15:04:05", pubStr); err == nil {
+					postedAt = &t
+				}
+			}
+
+			if title == "" || company == "" {
+				continue
+			}
+
+			desc := cleanText(asString(job["short_description"]))
+			if desc == "" {
+				var parts []string
+				if cat := cleanText(asString(job["category"])); cat != "" {
+					parts = append(parts, "Kategori: "+cat)
+				}
+				if exp := cleanText(asString(job["job_experience"])); exp != "" {
+					parts = append(parts, "Pengalaman: "+exp)
+				}
+				if jt := cleanText(asString(job["job_type"])); jt != "" {
+					parts = append(parts, "Tipe: "+jt)
+				}
+				if bens := cleanText(asString(job["job_benefits"])); bens != "" {
+					parts = append(parts, "Benefit: "+strings.ReplaceAll(bens, "\n", ", "))
+				}
+				desc = strings.Join(parts, " | ")
+			}
+
+			sourceURL := s.config.BaseURL + "/lowongan-kerja/" + slug
+			
+			result = append(result, ScrapedJob{
+				Title:       title,
+				Company:     company,
+				Location:    location,
+				Description: desc,
+				Salary:      salary,
+				ApplyURL:    sourceURL,
+				SourceURL:   sourceURL,
+				Source:      s.Name(),
+				ExternalID:  asString(job["id"]),
+				PostedAt:    postedAt,
+				Raw: map[string]any{
+					"source_selector": "remix_context",
+				},
+			})
+		}
+	}
+
+	return result
 }
 
 func (s *LokerIDSource) extractJobCard(card *goquery.Selection) (ScrapedJob, bool) {
-	titleSel := firstNonEmptySelection(card, []string{
-		".job-title a", ".job-title", "h2 a", "h3 a", "a[href*='lowongan']",
-	})
-	companySel := firstNonEmptySelection(card, []string{
-		".company-name", ".company", "[class*='company']", ".employer",
-	})
-	locationSel := firstNonEmptySelection(card, []string{
-		".location", "[class*='location']", ".job-location",
-	})
-
-	title := cleanText(titleSel.Text())
-	company := cleanText(companySel.Text())
-	location := cleanText(locationSel.Text())
-	if title == "" || company == "" {
-		return ScrapedJob{}, false
-	}
-
-	href := titleSel.AttrOr("href", "")
-	sourceURL := absolutizeURL(s.config.BaseURL, href)
-	externalID := externalIDFromURL(sourceURL)
-
-	return ScrapedJob{
-		Title:       title,
-		Company:     company,
-		Location:    location,
-		Description: cleanText(card.Find(".description, .job-description, [class*='description']").First().Text()),
-		ApplyURL:    sourceURL,
-		SourceURL:   sourceURL,
-		Source:      s.Name(),
-		ExternalID:  externalID,
-		Raw: map[string]any{
-			"source_selector": "loker_id_job_card",
-		},
-	}, true
+	// Deprecated: Loker.id now uses Remix SPA data in script tags.
+	return ScrapedJob{}, false
 }

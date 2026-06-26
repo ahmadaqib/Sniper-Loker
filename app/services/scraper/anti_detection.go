@@ -113,7 +113,6 @@ func (a *AntiDetection) ApplyHeaders(req *http.Request, referer string) {
 	req.Header.Set("User-Agent", profile.UserAgent)
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
 	req.Header.Set("Accept-Language", "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7")
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
 	req.Header.Set("DNT", "1")
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("Upgrade-Insecure-Requests", "1")

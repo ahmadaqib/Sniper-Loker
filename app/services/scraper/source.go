@@ -11,16 +11,17 @@ type SearchQuery struct {
 }
 
 type ScrapedJob struct {
-	Title       string
-	Company     string
-	Location    string
-	Description string
-	ApplyURL    string
-	SourceURL   string
-	Source      string
-	ExternalID  string
-	PostedAt    *time.Time
-	Raw         map[string]any
+	Title       string         `json:"title"`
+	Company     string         `json:"company"`
+	Location    string         `json:"location"`
+	Description string         `json:"description"`
+	Salary      string         `json:"salary"`
+	ApplyURL    string         `json:"apply_url"`
+	SourceURL   string         `json:"source_url"`
+	Source      string         `json:"source"`
+	ExternalID  string         `json:"external_id"`
+	PostedAt    *time.Time     `json:"posted_at"`
+	Raw         map[string]any `json:"raw"`
 }
 
 type SourceConfig struct {

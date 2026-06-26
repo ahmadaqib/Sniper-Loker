@@ -131,8 +131,18 @@ func (r *MongoJobRepository) UpsertJobs(ctx context.Context, scraped []scraper.S
 			job.DuplicateJobID = duplicate.ID
 			update := bson.M{
 				"$set": bson.M{
-					"last_seen_at": job.LastSeenAt,
-					"expires_at":   job.ExpiresAt,
+					"title":          job.Title,
+					"company":        job.Company,
+					"location":       job.Location,
+					"description":    job.Description,
+					"salary":         job.Salary,
+					"apply_url":      job.ApplyURL,
+					"source_url":     job.SourceURL,
+					"content_hash":   job.ContentHash,
+					"normalized_key": job.NormalizedKey,
+					"last_seen_at":   job.LastSeenAt,
+					"expires_at":     job.ExpiresAt,
+					"raw":            job.Raw,
 				},
 			}
 			if _, err := r.jobs.UpdateOne(ctx, bson.M{"_id": duplicate.ID}, update); err != nil {
@@ -309,8 +319,18 @@ func (r *InMemoryJobRepository) UpsertJobs(_ context.Context, scraped []scraper.
 	for _, scrapedJob := range scraped {
 		job := BuildJob(scrapedJob, r.now(), r.ttl)
 		if duplicate, tier := r.findDuplicate(job); duplicate != nil {
+			duplicate.Title = job.Title
+			duplicate.Company = job.Company
+			duplicate.Location = job.Location
+			duplicate.Description = job.Description
+			duplicate.Salary = job.Salary
+			duplicate.ApplyURL = job.ApplyURL
+			duplicate.SourceURL = job.SourceURL
+			duplicate.ContentHash = job.ContentHash
+			duplicate.NormalizedKey = job.NormalizedKey
 			duplicate.LastSeenAt = job.LastSeenAt
 			duplicate.ExpiresAt = job.ExpiresAt
+			duplicate.Raw = job.Raw
 			duplicate.DuplicateTier = tier
 			result.Duplicated++
 			result.Updated++
@@ -402,6 +422,7 @@ func BuildJob(scrapedJob scraper.ScrapedJob, now time.Time, ttl time.Duration) m
 		Company:       strings.TrimSpace(scrapedJob.Company),
 		Location:      strings.TrimSpace(scrapedJob.Location),
 		Description:   strings.TrimSpace(scrapedJob.Description),
+		Salary:        strings.TrimSpace(scrapedJob.Salary),
 		ApplyURL:      strings.TrimSpace(scrapedJob.ApplyURL),
 		SourceURL:     strings.TrimSpace(scrapedJob.SourceURL),
 		Source:        strings.TrimSpace(scrapedJob.Source),
@@ -422,6 +443,7 @@ func ContentHash(job scraper.ScrapedJob) string {
 		Normalize(job.Company),
 		Normalize(job.Location),
 		Normalize(job.Description),
+		Normalize(job.Salary),
 		Normalize(job.ApplyURL),
 		Normalize(job.SourceURL),
 		Normalize(job.Source),

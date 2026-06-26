@@ -12,6 +12,7 @@ type Job struct {
 	Company        string         `bson:"company" json:"company"`
 	Location       string         `bson:"location" json:"location"`
 	Description    string         `bson:"description,omitempty" json:"description,omitempty"`
+	Salary         string         `bson:"salary,omitempty" json:"salary,omitempty"`
 	ApplyURL       string         `bson:"apply_url,omitempty" json:"apply_url,omitempty"`
 	SourceURL      string         `bson:"source_url,omitempty" json:"source_url,omitempty"`
 	Source         string         `bson:"source" json:"source"`

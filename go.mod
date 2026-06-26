@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/refraction-networking/utls v1.8.2
 	github.com/stretchr/testify v1.11.1
+	go.mongodb.org/mongo-driver v1.17.9
 	go.mongodb.org/mongo-driver/v2 v2.7.0
 	golang.org/x/net v0.56.0
 )
@@ -61,6 +62,7 @@ require (
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/goforj/godump v1.9.0 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gookit/color v1.5.4 // indirect
 	github.com/gookit/filter v1.2.3 // indirect
@@ -89,6 +91,7 @@ require (
 	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
