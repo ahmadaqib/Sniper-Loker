@@ -2,6 +2,7 @@ package scraper
 
 import (
 	"context"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"time"
@@ -15,7 +16,9 @@ func NewUTLSHTTPClient(timeout time.Duration) *http.Client {
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.TLSClientConfig = nil
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	transport.ForceAttemptHTTP2 = false
+
 	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		var dialer net.Dialer
 		rawConn, err := dialer.DialContext(ctx, network, addr)
@@ -29,7 +32,24 @@ func NewUTLSHTTPClient(timeout time.Duration) *http.Client {
 			return nil, err
 		}
 
-		tlsConn := utls.UClient(rawConn, &utls.Config{ServerName: host}, utls.HelloChrome_Auto)
+		tlsConn := utls.UClient(rawConn, &utls.Config{ServerName: host, InsecureSkipVerify: true}, utls.HelloCustom)
+		spec, err := utls.UTLSIdToSpec(utls.HelloChrome_Auto)
+		if err != nil {
+			_ = rawConn.Close()
+			return nil, err
+		}
+
+		// Remove h2 from ALPN to force HTTP/1.1
+		for _, ext := range spec.Extensions {
+			if alpn, ok := ext.(*utls.ALPNExtension); ok {
+				alpn.AlpnProtocols = []string{"http/1.1"}
+			}
+		}
+		if err := tlsConn.ApplyPreset(&spec); err != nil {
+			_ = rawConn.Close()
+			return nil, err
+		}
+
 		if err := tlsConn.HandshakeContext(ctx); err != nil {
 			_ = rawConn.Close()
 			return nil, err

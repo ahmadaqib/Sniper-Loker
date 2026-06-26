@@ -8,6 +8,7 @@ import (
 	"Goravel-learn/app/repositories"
 	"Goravel-learn/app/services"
 	"Goravel-learn/app/services/scraper"
+	"Goravel-learn/app/facades"
 
 	goravelhttp "github.com/goravel/framework/contracts/http"
 	"github.com/gorilla/websocket"
@@ -105,7 +106,9 @@ func (c *JobController) Search(ctx goravelhttp.Context) goravelhttp.Response {
 	go func() {
 		runCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		_ = service.Scrape(runCtx, query).Err()
+		if err := service.Scrape(runCtx, query).Err(); err != nil {
+							facades.Log().Errorf("Scraper error for %s %s: %v", query.Keyword, query.Location, err)
+						}
 	}()
 
 	return ctx.Response().Json(http.StatusAccepted, goravelhttp.Json{
