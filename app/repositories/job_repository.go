@@ -34,6 +34,15 @@ type UpsertResult struct {
 type JobRepository interface {
 	UpsertJobs(ctx context.Context, jobs []scraper.ScrapedJob) (UpsertResult, error)
 	UpdateSourceStatus(ctx context.Context, source string, update models.SourceStatusUpdate) error
+	ListJobs(ctx context.Context, filter JobFilter) ([]models.Job, error)
+	SourceConfigs(ctx context.Context) (map[string]scraper.SourceConfig, error)
+}
+
+type JobFilter struct {
+	Keyword  string
+	Location string
+	Since    time.Time
+	Limit    int64
 }
 
 type MongoJobRepository struct {
@@ -189,6 +198,76 @@ func (r *MongoJobRepository) UpdateSourceStatus(ctx context.Context, source stri
 	return err
 }
 
+func (r *MongoJobRepository) SourceConfigs(ctx context.Context) (map[string]scraper.SourceConfig, error) {
+	cursor, err := r.sources.Find(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	configs := make(map[string]scraper.SourceConfig)
+	for cursor.Next(ctx) {
+		var source models.Source
+		if err := cursor.Decode(&source); err != nil {
+			return nil, err
+		}
+		useUTLS := true
+		if source.UseUTLS != nil {
+			useUTLS = *source.UseUTLS
+		}
+		configs[source.Name] = scraper.SourceConfig{
+			Name:             source.Name,
+			DisplayName:      source.DisplayName,
+			Enabled:          source.Enabled,
+			MaxPerHour:       source.MaxPerHour,
+			BaseDelay:        time.Duration(source.BaseDelayMillis) * time.Millisecond,
+			Jitter:           time.Duration(source.JitterMillis) * time.Millisecond,
+			RequestTimeout:   time.Duration(source.RequestTimeoutMillis) * time.Millisecond,
+			CircuitThreshold: source.CircuitThreshold,
+			CircuitCooldown:  time.Duration(source.CircuitCooldownMillis) * time.Millisecond,
+			UseUTLS:          useUTLS,
+		}
+	}
+	return configs, cursor.Err()
+}
+
+func (r *MongoJobRepository) ListJobs(ctx context.Context, filter JobFilter) ([]models.Job, error) {
+	query := bson.M{}
+	if !filter.Since.IsZero() {
+		query["last_seen_at"] = bson.M{"$gt": filter.Since}
+	}
+	if filter.Keyword != "" {
+		query["$or"] = []bson.M{
+			{"title": bson.M{"$regex": filter.Keyword, "$options": "i"}},
+			{"company": bson.M{"$regex": filter.Keyword, "$options": "i"}},
+			{"description": bson.M{"$regex": filter.Keyword, "$options": "i"}},
+		}
+	}
+	if filter.Location != "" {
+		query["location"] = bson.M{"$regex": filter.Location, "$options": "i"}
+	}
+	limit := filter.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	cursor, err := r.jobs.Find(ctx, query, options.Find().SetSort(bson.D{{Key: "last_seen_at", Value: -1}}).SetLimit(limit))
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var jobs []models.Job
+	for cursor.Next(ctx) {
+		var job models.Job
+		if err := cursor.Decode(&job); err != nil {
+			return nil, err
+		}
+		jobs = append(jobs, job)
+	}
+	return jobs, cursor.Err()
+}
+
 type InMemoryJobRepository struct {
 	mu      sync.Mutex
 	jobs    []models.Job
@@ -237,6 +316,37 @@ func (r *InMemoryJobRepository) UpdateSourceStatus(_ context.Context, source str
 	defer r.mu.Unlock()
 	r.sources[source] = update
 	return nil
+}
+
+func (r *InMemoryJobRepository) SourceConfigs(_ context.Context) (map[string]scraper.SourceConfig, error) {
+	return map[string]scraper.SourceConfig{}, nil
+}
+
+func (r *InMemoryJobRepository) ListJobs(_ context.Context, filter JobFilter) ([]models.Job, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var jobs []models.Job
+	for _, job := range r.jobs {
+		if !filter.Since.IsZero() && !job.LastSeenAt.After(filter.Since) {
+			continue
+		}
+		if filter.Keyword != "" {
+			needle := Normalize(filter.Keyword)
+			haystack := Normalize(job.Title + " " + job.Company + " " + job.Description)
+			if !strings.Contains(haystack, needle) {
+				continue
+			}
+		}
+		if filter.Location != "" && !strings.Contains(Normalize(job.Location), Normalize(filter.Location)) {
+			continue
+		}
+		jobs = append(jobs, job)
+	}
+	if filter.Limit > 0 && int64(len(jobs)) > filter.Limit {
+		jobs = jobs[:filter.Limit]
+	}
+	return jobs, nil
 }
 
 func (r *InMemoryJobRepository) Jobs() []models.Job {

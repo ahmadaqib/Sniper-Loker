@@ -943,19 +943,19 @@ Font: `--font-mono`, `--text-xs`, `--color-ink-secondary`. Dot: animasi `pulse` 
 
 ### Phase 3 — Tambah Sumber (Week 2-3)
 
-- [ ] `KarirComSource` (Tipe B)
-- [ ] `IndeedSource` (Tipe C — JSON embedded)
-- [ ] `GlintsSource` (Tipe C — `__NEXT_DATA__`)
-- [ ] uTLS integration untuk sumber yang lebih ketat
-- [ ] Per-source config di `sources` collection (max_per_hour, delay configurable)
+- [x] `KarirComSource` (Tipe B)
+- [x] `IndeedSource` (Tipe C — JSON embedded)
+- [x] `GlintsSource` (Tipe C — `__NEXT_DATA__`)
+- [x] uTLS integration untuk sumber yang lebih ketat
+- [x] Per-source config di `sources` collection (max_per_hour, delay configurable)
 
 ### Phase 4 — WebSocket Layer (Week 3)
 
-- [ ] WebSocket handler + channel naming (`{keyword-slug}-{location-slug}`)
-- [ ] Broadcast service (batch mode, 2 detik window)
-- [ ] Connection pool + goroutine safety (`sync.Map`)
-- [ ] Fallback polling endpoint `/api/jobs?keyword=&location=&since=<ts>`
-- [ ] Client reconnect logic (exponential backoff)
+- [x] WebSocket handler + channel naming (`{keyword-slug}-{location-slug}`)
+- [x] Broadcast service (batch mode, 2 detik window)
+- [x] Connection pool + goroutine safety (`sync.Map`)
+- [x] Fallback polling endpoint `/api/jobs?keyword=&location=&since=<ts>`
+- [x] Client reconnect logic (exponential backoff)
 
 ### Phase 5 — Frontend (Week 3-4)
 

@@ -34,10 +34,16 @@ type SourceConfig struct {
 	RequestTimeout   time.Duration
 	CircuitThreshold int
 	CircuitCooldown  time.Duration
+	UseUTLS          bool
 }
 
 type JobSource interface {
 	Name() string
 	Config() SourceConfig
 	Scrape(ctx context.Context, query SearchQuery) ([]ScrapedJob, error)
+}
+
+type ConfigurableSource interface {
+	JobSource
+	ApplyConfig(config SourceConfig)
 }

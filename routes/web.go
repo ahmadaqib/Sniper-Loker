@@ -4,8 +4,8 @@ import (
 	"github.com/goravel/framework/contracts/http"
 	"github.com/goravel/framework/support"
 
-	"Goravel-learn/app/http/controllers"
 	"Goravel-learn/app/facades"
+	"Goravel-learn/app/http/controllers"
 )
 
 func Web() {
@@ -19,4 +19,8 @@ func Web() {
 
 	userController := controllers.NewUserController()
 	facades.Route().Get("/users", userController.Index)
+
+	jobController := controllers.NewJobController()
+	facades.Route().Get("/api/jobs", jobController.Index)
+	facades.Route().Get("/ws/jobs", jobController.WebSocket)
 }

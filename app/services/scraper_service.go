@@ -10,13 +10,14 @@ import (
 )
 
 type ScraperService struct {
-	registry *scraper.SourceRegistry
-	breaker  *scraper.CircuitBreaker
-	repo     repositories.JobRepository
+	registry  *scraper.SourceRegistry
+	breaker   *scraper.CircuitBreaker
+	repo      repositories.JobRepository
+	broadcast *BroadcastService
 }
 
 func NewScraperService(registry *scraper.SourceRegistry, breaker *scraper.CircuitBreaker, repo repositories.JobRepository) *ScraperService {
-	return &ScraperService{registry: registry, breaker: breaker, repo: repo}
+	return &ScraperService{registry: registry, breaker: breaker, repo: repo, broadcast: DefaultBroadcastService}
 }
 
 type ScrapeSummary struct {
@@ -88,6 +89,9 @@ func (s *ScraperService) Scrape(ctx context.Context, query scraper.SearchQuery) 
 		summary.Updated += upsert.Updated
 		summary.Duplicated += upsert.Duplicated
 		summary.SourceResults = append(summary.SourceResults, result)
+		if s.broadcast != nil {
+			s.broadcast.BroadcastJobs(query.Keyword, query.Location, jobs)
+		}
 	}
 
 	return summary

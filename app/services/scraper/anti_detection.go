@@ -22,30 +22,30 @@ type UAProfile struct {
 
 var defaultProfiles = []UAProfile{
 	{
-		UserAgent:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`,
-		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="120.0.6099.130", "Google Chrome";v="120.0.6099.130"`,
+		UserAgent:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="149", "Google Chrome";v="149"`,
+		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="149.0.0.0", "Google Chrome";v="149.0.0.0"`,
 		Platform:    "Windows",
 		PlatformVer: "15.0.0",
 	},
 	{
-		UserAgent:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`,
-		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="120.0.6099.130", "Google Chrome";v="120.0.6099.130"`,
+		UserAgent:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="149", "Google Chrome";v="149"`,
+		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="149.0.0.0", "Google Chrome";v="149.0.0.0"`,
 		Platform:    "macOS",
-		PlatformVer: "13.6.3",
+		PlatformVer: "15.5.0",
 	},
 	{
-		UserAgent:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="119", "Google Chrome";v="119"`,
-		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="119.0.6045.160", "Google Chrome";v="119.0.6045.160"`,
-		Platform:    "Windows",
-		PlatformVer: "15.0.0",
+		UserAgent:   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="149", "Google Chrome";v="149"`,
+		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="149.0.0.0", "Google Chrome";v="149.0.0.0"`,
+		Platform:    "Linux",
+		PlatformVer: "6.8.0",
 	},
 	{
-		UserAgent:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="120", "Microsoft Edge";v="120"`,
-		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="120.0.6099.130", "Microsoft Edge";v="120.0.2210.91"`,
+		UserAgent:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36 Edg/149.0.0.0",
+		SecCHUA:     `"Not_A Brand";v="8", "Chromium";v="149", "Microsoft Edge";v="149"`,
+		SecCHUAFull: `"Not_A Brand";v="8.0.0.0", "Chromium";v="149.0.0.0", "Microsoft Edge";v="149.0.0.0"`,
 		Platform:    "Windows",
 		PlatformVer: "15.0.0",
 	},
@@ -55,15 +55,17 @@ type sessionState struct {
 	profile   UAProfile
 	jar       *cookiejar.Jar
 	createdAt time.Time
+	lastUsed  time.Time
 }
 
 type AntiDetection struct {
-	mu         sync.Mutex
-	random     *rand.Rand
-	sessions   map[string]*sessionState
-	profiles   []UAProfile
-	sessionTTL time.Duration
-	now        func() time.Time
+	mu          sync.Mutex
+	random      *rand.Rand
+	sessions    map[string]*sessionState
+	profiles    []UAProfile
+	sessionTTL  time.Duration
+	maxSessions int
+	now         func() time.Time
 }
 
 func NewAntiDetection(profiles []UAProfile, sessionTTL ...time.Duration) *AntiDetection {
@@ -77,11 +79,12 @@ func NewAntiDetection(profiles []UAProfile, sessionTTL ...time.Duration) *AntiDe
 	}
 
 	return &AntiDetection{
-		random:     rand.New(rand.NewSource(time.Now().UnixNano())),
-		sessions:   make(map[string]*sessionState),
-		profiles:   append([]UAProfile(nil), profiles...),
-		sessionTTL: ttl,
-		now:        time.Now,
+		random:      rand.New(rand.NewSource(time.Now().UnixNano())),
+		sessions:    make(map[string]*sessionState),
+		profiles:    append([]UAProfile(nil), profiles...),
+		sessionTTL:  ttl,
+		maxSessions: 128,
+		now:         time.Now,
 	}
 }
 
@@ -188,21 +191,51 @@ func (a *AntiDetection) sessionFor(domain string) *sessionState {
 	defer a.mu.Unlock()
 
 	now := a.now()
+	previous := a.sessions[domain]
+	a.pruneExpiredLocked(now)
 	if session, ok := a.sessions[domain]; ok && now.Sub(session.createdAt) < a.sessionTTL {
+		session.lastUsed = now
 		return session
 	}
 
 	next := a.profiles[a.random.Intn(len(a.profiles))]
-	if previous, ok := a.sessions[domain]; ok && len(a.profiles) > 1 {
+	if previous != nil && len(a.profiles) > 1 {
 		for next.UserAgent == previous.profile.UserAgent {
 			next = a.profiles[a.random.Intn(len(a.profiles))]
 		}
 	}
 
 	jar, _ := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
-	session := &sessionState{profile: next, jar: jar, createdAt: now}
+	a.evictOldestIfFullLocked()
+	session := &sessionState{profile: next, jar: jar, createdAt: now, lastUsed: now}
 	a.sessions[domain] = session
 	return session
+}
+
+func (a *AntiDetection) pruneExpiredLocked(now time.Time) {
+	for domain, session := range a.sessions {
+		if now.Sub(session.createdAt) >= a.sessionTTL {
+			delete(a.sessions, domain)
+		}
+	}
+}
+
+func (a *AntiDetection) evictOldestIfFullLocked() {
+	if a.maxSessions <= 0 || len(a.sessions) < a.maxSessions {
+		return
+	}
+
+	var oldestDomain string
+	var oldestTime time.Time
+	for domain, session := range a.sessions {
+		if oldestDomain == "" || session.lastUsed.Before(oldestTime) {
+			oldestDomain = domain
+			oldestTime = session.lastUsed
+		}
+	}
+	if oldestDomain != "" {
+		delete(a.sessions, oldestDomain)
+	}
 }
 
 func secFetchSite(domain, referer string) string {

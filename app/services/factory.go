@@ -9,6 +9,7 @@ import (
 	"Goravel-learn/app/facades"
 	"Goravel-learn/app/repositories"
 	"Goravel-learn/app/services/scraper"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 func NewDefaultScraperService(ctx context.Context) (*ScraperService, error) {
@@ -17,18 +18,31 @@ func NewDefaultScraperService(ctx context.Context) (*ScraperService, error) {
 		return nil, err
 	}
 
-	repo := repositories.NewMongoJobRepository(
-		client,
-		envString("MONGODB_DATABASE", "loker_radar"),
-		time.Duration(envInt("JOB_TTL_DAYS", 7))*24*time.Hour,
-	)
+	repo := newMongoRepository(client)
 	if err := repo.EnsureIndexes(ctx); err != nil {
 		return nil, err
 	}
 
 	registry := scraper.NewSourceRegistry()
-	if err := registry.Register(scraper.NewLokerIDSource(nil, nil)); err != nil {
+	sources := []scraper.JobSource{
+		scraper.NewLokerIDSource(nil, nil),
+		scraper.NewKarirComSource(nil, nil),
+		scraper.NewIndeedSource(nil, nil),
+		scraper.NewGlintsSource(nil, nil),
+	}
+	configs, err := repo.SourceConfigs(ctx)
+	if err != nil {
 		return nil, err
+	}
+	for _, source := range sources {
+		if config, ok := configs[source.Name()]; ok {
+			if configurable, ok := source.(scraper.ConfigurableSource); ok {
+				configurable.ApplyConfig(config)
+			}
+		}
+		if err := registry.Register(source); err != nil {
+			return nil, err
+		}
 	}
 
 	breaker := scraper.NewCircuitBreaker(
@@ -37,6 +51,26 @@ func NewDefaultScraperService(ctx context.Context) (*ScraperService, error) {
 	)
 
 	return NewScraperService(registry, breaker, repo), nil
+}
+
+func NewDefaultJobRepository(ctx context.Context) (repositories.JobRepository, error) {
+	client, err := repositories.NewMongoClient(envString("MONGODB_URI", "mongodb://localhost:27017"))
+	if err != nil {
+		return nil, err
+	}
+	repo := newMongoRepository(client)
+	if err := repo.EnsureIndexes(ctx); err != nil {
+		return nil, err
+	}
+	return repo, nil
+}
+
+func newMongoRepository(client *mongo.Client) *repositories.MongoJobRepository {
+	return repositories.NewMongoJobRepository(
+		client,
+		envString("MONGODB_DATABASE", "loker_radar"),
+		time.Duration(envInt("JOB_TTL_DAYS", 7))*24*time.Hour,
+	)
 }
 
 func envString(key, fallback string) string {

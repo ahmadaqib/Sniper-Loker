@@ -11,6 +11,15 @@ import (
 	"time"
 )
 
+func TestDefaultProfilesUseCurrentMajorVersion(t *testing.T) {
+	for _, profile := range defaultProfiles {
+		if strings.Contains(profile.UserAgent, "Chrome/119.") || strings.Contains(profile.UserAgent, "Chrome/120.") ||
+			strings.Contains(profile.SecCHUA, `v="119"`) || strings.Contains(profile.SecCHUA, `v="120"`) {
+			t.Fatalf("stale browser profile should not be used: %+v", profile)
+		}
+	}
+}
+
 func TestApplyHeadersKeepsClientHintsAlignedWithProfile(t *testing.T) {
 	profile := UAProfile{
 		UserAgent:   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
@@ -75,6 +84,37 @@ func TestSessionExpiresAndRotatesProfile(t *testing.T) {
 
 	if first == second {
 		t.Fatalf("expected rotated profile after session ttl, still got %q", first)
+	}
+}
+
+func TestSessionCacheEvictsOldestWhenFull(t *testing.T) {
+	antiDetection := NewAntiDetection([]UAProfile{
+		{UserAgent: "one", SecCHUA: `"One";v="1"`, SecCHUAFull: `"One";v="1.0.0.0"`, Platform: "Windows", PlatformVer: "15.0.0"},
+	})
+	antiDetection.maxSessions = 2
+
+	_ = antiDetection.CookieJarFor("a.example")
+	_ = antiDetection.CookieJarFor("b.example")
+	_ = antiDetection.CookieJarFor("c.example")
+
+	antiDetection.mu.Lock()
+	defer antiDetection.mu.Unlock()
+	if len(antiDetection.sessions) != 2 {
+		t.Fatalf("expected capped session cache, got %d sessions", len(antiDetection.sessions))
+	}
+	if _, ok := antiDetection.sessions["a.example"]; ok {
+		t.Fatal("expected oldest session to be evicted")
+	}
+}
+
+func TestDefaultSourcesUseUTLSClient(t *testing.T) {
+	source := NewLokerIDSource(nil, nil)
+	if !source.Config().UseUTLS {
+		t.Fatal("expected uTLS to be enabled by default")
+	}
+	transport, ok := source.client.Transport.(*http.Transport)
+	if !ok || transport.DialTLSContext == nil {
+		t.Fatal("expected default source client to use uTLS transport")
 	}
 }
 

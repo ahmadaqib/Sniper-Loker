@@ -36,9 +36,10 @@ func NewLokerIDSource(client *http.Client, antiDetection *AntiDetection) *LokerI
 		RequestTimeout:   10 * time.Second,
 		CircuitThreshold: 3,
 		CircuitCooldown:  30 * time.Minute,
+		UseUTLS:          true,
 	}
 	if client == nil {
-		client = &http.Client{Timeout: config.RequestTimeout}
+		client = NewUTLSHTTPClient(config.RequestTimeout)
 	}
 	if antiDetection == nil {
 		antiDetection = NewAntiDetection(nil)
@@ -53,6 +54,13 @@ func (s *LokerIDSource) Name() string {
 
 func (s *LokerIDSource) Config() SourceConfig {
 	return s.config
+}
+
+func (s *LokerIDSource) ApplyConfig(config SourceConfig) {
+	s.config = mergeSourceConfig(s.config, config)
+	if s.config.UseUTLS {
+		s.client = NewUTLSHTTPClient(s.config.RequestTimeout)
+	}
 }
 
 func (s *LokerIDSource) Scrape(ctx context.Context, query SearchQuery) ([]ScrapedJob, error) {
@@ -173,50 +181,4 @@ func (s *LokerIDSource) extractJobCard(card *goquery.Selection) (ScrapedJob, boo
 			"source_selector": "loker_id_job_card",
 		},
 	}, true
-}
-
-func firstNonEmptySelection(parent *goquery.Selection, selectors []string) *goquery.Selection {
-	for _, selector := range selectors {
-		match := parent.Find(selector).First()
-		if cleanText(match.Text()) != "" || match.AttrOr("href", "") != "" {
-			return match
-		}
-	}
-	return parent.Find("__missing__")
-}
-
-func cleanText(value string) string {
-	return strings.Join(strings.Fields(value), " ")
-}
-
-func absolutizeURL(baseURL, raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return ""
-	}
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		return raw
-	}
-	if parsed.IsAbs() {
-		return parsed.String()
-	}
-	base, err := url.Parse(baseURL)
-	if err != nil {
-		return raw
-	}
-	return base.ResolveReference(parsed).String()
-}
-
-func externalIDFromURL(raw string) string {
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		return ""
-	}
-	path := strings.Trim(parsed.Path, "/")
-	if path == "" {
-		return ""
-	}
-	parts := strings.Split(path, "/")
-	return parts[len(parts)-1]
 }
